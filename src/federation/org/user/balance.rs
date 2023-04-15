@@ -1,3 +1,4 @@
+use serde::{Serialize, Deserialize};
 use std::{
     sync::atomic::{Ordering, AtomicUsize},
     collections::HashMap,
@@ -6,7 +7,7 @@ use std::{
 pub type Symbol = String;
 pub type Balances = Vec<Balance>;
 
-#[derive(Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Balance {
     // org_id: String,
     pub symbol: Symbol,
@@ -22,6 +23,12 @@ impl Clone for Balance {
 }
 
 impl Balance {
+    pub fn new(symbol: String, amt: usize) -> Self {
+        Self {
+            symbol,
+            amt: AtomicUsize::new(amt),
+        }
+    }
     pub fn get(&self) -> usize {
         self.amt.load(Ordering::Relaxed)
     }

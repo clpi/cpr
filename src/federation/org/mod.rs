@@ -2,26 +2,23 @@ pub mod user;
 pub mod id;
 
 use std::{fmt, collections::HashMap, ops::DerefMut};
+use serde::{Serialize, Deserialize};
 use user::{OrgUser, Balance};
 pub use self::id::OrgId;
 
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Org {
     pub id: OrgId,
-    pub name: String,
-    pub identifier: String,
     pub symbol: String,
     pub users: Vec<OrgUser>,
 }
 
 impl Default for Org {
     fn default() -> Self {
-        let oid = OrgId::new();
+        let oid = OrgId::gen();
         Self {
             id: oid.clone(),
-            name: oid.to_string(),
-            identifier: oid.to_string(),
             symbol: oid.to_string(),
             users: Vec::new(),
         }
@@ -31,20 +28,27 @@ impl Default for Org {
 impl Org {
     pub fn new(name: &str) -> Self {
         Self { 
-            id: OrgId::new(),
-            name: name.into(), 
-            identifier: name.into(), 
+            id: OrgId::new(name),
             users: Vec::new(),
-            symbol: name.into() 
+            symbol: name.to_uppercase().into() 
         }
     }
+    pub fn get_id(&self) -> String {
+        return self.id.id.clone();
+    }
+    pub fn get_name(&self) -> String {
+        return self.id.name.clone();
+    }
+    pub fn get_identifier(&self) -> String {
+        self.id.to_string()
+    }
     pub fn new_user(&mut self, handle: String) -> OrgUser {
-        let ou = OrgUser::new(handle.clone());
-        self.users.push(OrgUser::new(handle.clone()));
+        let ou = OrgUser::new(self.id, handle.clone());
+        self.users.push(OrgUser::new(self.id, handle.clone()));
         return ou;
     }
-    pub fn get_users_mut(&mut self) -> Vec<OrgUser> {
-        return self.users.clone();
+    pub fn get_users(self) -> Vec<OrgUser> {
+        return Vec::from(self.users);
     }
     pub fn has_user(self, handle: String) -> Option<OrgUser> {
         let u = self.users.into_iter().flat_map(|u| {
@@ -61,36 +65,33 @@ impl Org {
             return Some(u.unwrap());
         }
     }
-    pub fn get_or_create_user(mut self, handle: String) -> OrgUser {
-        let users = self.users.to_vec();
-        match users.into_iter().find(|u| u.handle == handle.clone()) {
-            Some(u) => return u,
+    pub fn get_or_create_user(&mut self, handle: String) -> OrgUser {
+        let u = &mut self.users;
+        match &u.into_iter().find(|u| u.handle == handle.clone()) {
+            Some(u) => return OrgUser::new(self.id, handle.clone()),
             None => {
-                let u = OrgUser::new(handle.clone());
-                self.users.push(OrgUser::new(handle));
+                let u = OrgUser::new(self.id, handle.clone());
+                self.users.push(OrgUser::new(self.id, handle));
                 return u;
             },
         }
     }
     pub fn new_from(
         name: &str, 
-        identifier: &str,
         symbol: &str,
         users: Vec<OrgUser>,
     ) -> Self {
         Self { 
-            id: OrgId::new(),
-            name: name.into(), 
-            identifier: identifier.into(), 
+            id: OrgId::new(name),
             users: Vec::new(),
-            symbol: symbol.into(), 
+            symbol: symbol.to_uppercase().into(), 
         }
     }
 }
 
 impl fmt::Display for Org {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name)
+        write!(f, "{}{}", self.id.id, self.id.name)
     }
 }
 

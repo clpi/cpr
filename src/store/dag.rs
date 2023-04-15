@@ -1,20 +1,26 @@
+use petgraph::{
+    graph::{Graph, NodeIndex},
+    visit::{EdgeRef, IntoNodeReferences, NodeRef, Reversed},
+    Direction,
+};
 use tokio::{
     time::{Duration},
 };
-use crate::{Transaction, Federation};
+use crate::{Transaction, Federation, federation::org::OrgId};
 use std::{
     thread,
     collections::VecDeque,
     sync::{Arc, Mutex,  atomic::{Ordering, AtomicUsize, AtomicBool}}, fmt,
 };
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct DAG {
     pub nodes: Mutex<Vec<Transaction>>,
 }
 impl fmt::Display for DAG {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{:?}", self.nodes.lock().unwrap().to_vec())
+        writeln!(f, "{:?}", self.nodes.lock().unwrap())
     }
 }
 impl DAG {
@@ -78,11 +84,11 @@ impl StreamingDAG {
 
     }
 
-    pub async fn push_tx(&self, tx: Transaction, org: &str) {
-        if let Some(sig) = self.federation.validate_tx(&tx, org) {
-            let mut txn = tx.clone();
+    pub async fn push_tx(&self, tx: Transaction, org_id: OrgId) {
+        if let Some(sig) = self.federation.validate_tx(&tx, org_id) {
+            let mut txn = Transaction::from(tx);
             txn.sig = Some(sig);
-            self.dag.push_tx(txn.clone());
+            self.dag.push_tx(Transaction::from(tx));
             let mut txnqueue = self.tx_queue.lock().unwrap();
             txnqueue.push_back(txn);
             if txnqueue.len() > self.window_size.load(Ordering::Relaxed) {
@@ -95,11 +101,13 @@ impl StreamingDAG {
         while !stop.load(Ordering::Relaxed) {
             let mut txnqueue = self.tx_queue.lock().unwrap();
             if let Some(txn) = txnqueue.pop_front() {
-                println!("Processed transaction: {} -> {}, {}",
-                         txn.send, txn.recv, txn.amt);
+                println!("Processed transaction: {}{} -> {}{}, {}{}",
+                         txn.send.get_org_id().to_string(), txn.send.handle,
+                         txn.recv.get_org_id().to_string(), txn.recv.handle,
+                         txn.amt.amt, txn.amt.symbol);
             }
             drop(txnqueue);
-            thread::sleep(Duration::from_millis(100));
+            tokio::time::sleep(Duration::from_millis(1000)).await;
         }
     }
 }

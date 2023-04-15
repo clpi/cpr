@@ -1,8 +1,9 @@
 use std::ops::Deref;
+use serde::{Serialize, Deserialize};
 
 use rand::{Rng, RngCore, distributions::Alphanumeric};
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub struct Id(pub String);
 
 impl Default for Id {

@@ -2,17 +2,18 @@ pub mod org;
 pub mod id;
 
 pub use org::Org;
-use self::id::FedId;
+use self::{id::FedId, org::OrgId};
 
 use super::Transaction;
 
+use serde::{Serialize, Deserialize};
 use tokio::time::Duration;
 use std::{
     collections::{HashMap, VecDeque},
     time::SystemTime
 };
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Federation {
     pub id: FedId,
     pub name: String,
@@ -44,9 +45,9 @@ impl Federation {
         self.orgs.push(org);
     }
 
-    pub fn validate_tx(&self, tx: &Transaction, org: &str) -> Option<String> {
+    pub fn validate_tx(&self, tx: &Transaction, org_id: OrgId) -> Option<String> {
         let orgs = self.orgs.as_slice();
-        match orgs.into_iter().find(|o| o.name == org) {
+        match orgs.into_iter().find(|o| o.id.name == org_id.name) {
             Some(o) => {
                 // check validation
                 let is_valid = true;

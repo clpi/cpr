@@ -3,6 +3,7 @@ pub mod federation;
 pub mod tx;
 pub mod store;
 
+pub use node::Node;
 pub use tx::Transaction;
 pub use federation::{Federation, Org};
 pub use store::{DAG, StreamingDAG};
@@ -20,12 +21,16 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use crate::federation::org::user::OrgUser;
+
 
 pub async fn run() {
     println!("RUNNING");
     let mut fed = Federation::new("test");
-    fed.register_org(Org::new("Alice"));
-    fed.register_org(Org::new("Bob"));
+    let o1 = Org::new("Alice");
+    let o2 = Org::new("Bob");
+    fed.register_org(o1);
+    fed.register_org(o2);
     let streamdag = StreamingDAG::new_arc_with_federation(10, fed);
     // streamdag.federation = fed;
     let stop = Arc::new(AtomicBool::new(false));
@@ -35,19 +40,31 @@ pub async fn run() {
     let mut rng = rand::thread_rng();
     loop {
         println!("LOOPING");
-        let sender = format!("User{}", rng.gen_range(1..=10));
-        let recv = format!("User{}", rng.gen_range(1..=10));
-        let amt = rng.gen_range(1..=100);
+        let u1 = format!("User{}", rng.gen_range(1..=10));
+        let u2 = format!("User{}", rng.gen_range(1..=10));
+        let us1 = OrgUser::new(o1.id, u1);
+        let us2 = OrgUser::new(o2.id, u2);
 
-        let tx = Transaction::new(&sender, &recv, amt);
-        let org_name = if rng.gen_bool(0.5) { "Alice" } else { "Bob" };
-        println!("IN {}, {} PAID {} {}{}",
-                 org_name,
-                 sender,
-                 recv,
-                 amt,
-                 org_name);
-        streamdag.push_tx(tx, org_name).await;
+        let amt = rng.gen_range(1..=100);
+        let (recv, send) = if rng.gen_bool(0.5) { 
+            (us2, us1)
+        } else { (us1, us2)};
+        let (org, symbol) = if rng.gen_bool(0.5) { 
+            (o1.id, o1.symbol)
+        } else { 
+            (o2.id, o2.symbol)
+        };
+        
+
+        let tx = Transaction::new(send, recv, &symbol, amt);
+        println!("IN {} ({}), {} {}{} PAID {} {}{} {}{}",
+                 org.name,
+                 org.to_string(),
+                 send.org_id.to_string(), send.handle, send.id.to_string(),
+                 recv.org_id.to_string(), recv.handle, recv.id.to_string(),
+                 amt, symbol,
+                 );
+        streamdag.push_tx(tx, org).await;
 
         println!("DAG [{}]: {:#?}", streamdag.dag.nodes.lock().unwrap().len(), streamdag);
         thread::sleep(Duration::from_millis(2600));

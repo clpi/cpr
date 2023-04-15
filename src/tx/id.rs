@@ -1,8 +1,9 @@
 use std::ops::Deref;
 
 use rand::{Rng, RngCore, distributions::Alphanumeric};
+use serde::{Serialize, Deserialize};
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub struct TxId(pub String);
 
 impl Default for TxId {
