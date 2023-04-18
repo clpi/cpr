@@ -1,0 +1,18 @@
+[config]
+init_task = "init"
+default_to_workspace = false
+
+[env]
+RUSTFLAGS = "-D warnings"
+
+[tasks]
+
+[tasks.init]
+
+
+[tasks.client-test]
+
+[tasks.node-test]
+
+[tasks.e2e-test]
+

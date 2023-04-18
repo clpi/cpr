@@ -1,29 +1,25 @@
-pub mod balance;
 pub mod id;
+pub mod key;
 
-use serde::{Serialize, Deserialize};
-use std::ops::DerefMut;
+use serde::{Deserialize, Serialize};
+use std::{ops::DerefMut, str::FromStr};
 
-pub use id::Id;
-pub use balance::{Balance, Balances};
+use crate::Balance;
 
-use super::OrgId;
+use super::{HasIdentifier, OrgId};
+pub use id::OrgUserId;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Clone, Deserialize)]
+#[serde()]
 pub struct OrgUser {
-    pub id: Id,
-    pub org_id: OrgId,
-    pub handle: String,
+    pub id: OrgUserId,
     pub balances: Vec<Balance>,
 }
 
 impl Default for OrgUser {
     fn default() -> Self {
-        let did = Id::new();
         Self {
-            id: did.clone(),
-            org_id: OrgId::gen(),
-            handle: did.to_string(),
+            id: OrgUserId::default(),
             balances: vec![],
         }
     }
@@ -32,37 +28,49 @@ impl Default for OrgUser {
 impl OrgUser {
     pub fn new(org_id: OrgId, handle: String) -> Self {
         Self {
-            id: Id::new(),
-            org_id,
-            handle,
+            id: OrgUserId::new(org_id, handle),
             balances: vec![],
         }
     }
     pub fn get_global_identifier(self) -> String {
-
+        format!("{} {} {}", 
+            self.id.org_id.fed_id.to_string(),
+            self.id.org_id.to_string(), 
+            self.id.to_string())
     }
-    pub fn get_in_fed_identifier(self) -> String {
-        format!("{}{}", self.org_id.to_self.get_in_org_identifier())
 
+    pub fn get_in_fed_identifier(self) -> String {
+        format!("{} {} {}", 
+            self.id.org_id.fed_id.to_string(),
+            self.id.org_id.to_string(), 
+            self.id.to_string())
     }
     pub fn get_in_org_identifier(self) -> String {
-        format!("{}{}", self.handle, self.id)
+        format!("{} {}", self.id.org_id.to_string(), self.id.to_string())
     }
     pub fn new_with_org_id(org_id: OrgId, handle: String) -> Self {
         Self {
-            id: Id::new(),
-            org_id, handle, ..Default::default()
+            id: OrgUserId::new(org_id, handle),
+            ..Default::default()
         }
-
     }
     pub fn new_with_identifier(org_identifier: String, handle: String) -> Self {
+        let org_id = OrgId::from_str(&org_identifier.as_str()).unwrap_or_default();
         Self {
-            id: Id::new(),
-            org_id: OrgId::try_from(org_identifier).unwrap_or_default(),
+            id: OrgUserId::new(org_id, handle),
             balances: vec![],
-            handle,
         }
+    }
 
+    pub fn get_balance(&self, symbol: &str) -> Option<&Balance> {
+        let b = self.balances.as_slice().into_iter().find_map(|b| {
+            if b.symbol == symbol {
+                Some(b)
+            } else {
+                None
+            }
+        });
+        return b;
     }
 
     pub fn get_balance_mut(&mut self, symbol: &str) -> Option<&mut Balance> {
@@ -73,20 +81,18 @@ impl OrgUser {
                 None
             }
         });
-        if b.is_none() {
-            return None;
-        } else {
-            return Some(b.unwrap());
-        }
+        return b;
     }
 
     pub fn get_org_id(&self) -> OrgId {
-        self.org_id.clone()
+        self.id.org_id.clone()
     }
 
-    pub fn add_balance(&mut self, symbol: &str, amt: usize) {
-        if let Some(b) = self.get_balance_mut(symbol) {
+    pub fn add_balance(&mut self, symbol: String, amt: usize) {
+        if let Some(b) = self.get_balance_mut(&symbol) {
             b.add(amt);
+        } else {
+            self.balances.push(Balance::new(symbol, amt));
         }
     }
 
@@ -95,5 +101,4 @@ impl OrgUser {
             b.sub(amt);
         }
     }
-
 }

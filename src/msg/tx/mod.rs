@@ -2,9 +2,10 @@ pub mod id;
 
 use tokio::time::Duration;
 use std::time::SystemTime;
-use id::TxId;
+pub use id::TxId;
 
-use crate::federation::org::user::{OrgUser, Balance};
+use crate::{federation::org::user::OrgUser, Balance};
+
 
 /// 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -20,9 +21,9 @@ impl Clone for Transaction {
     fn clone(&self) -> Self {
         return Self {
             id: self.id.clone(),
-            send: OrgUser::from(self.send),
-            recv: OrgUser::from(self.recv),
-            amt: self.amt,
+            send: OrgUser::from(self.send.clone()),
+            recv: OrgUser::from(self.recv.clone()),
+            amt: self.amt.clone(),
             timestamp: self.timestamp,
             sig: self.sig.clone(),
         }

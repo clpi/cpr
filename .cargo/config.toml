@@ -1,0 +1,6 @@
+[alias]
+b = "build"
+t = "test"
+r = "run"
+C = "check"
+m = "make"

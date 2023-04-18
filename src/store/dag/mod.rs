@@ -1,3 +1,6 @@
+pub mod tree;
+pub mod graph;
+
 use petgraph::{
     graph::{Graph, NodeIndex},
     visit::{EdgeRef, IntoNodeReferences, NodeRef, Reversed},
@@ -13,6 +16,14 @@ use std::{
     sync::{Arc, Mutex,  atomic::{Ordering, AtomicUsize, AtomicBool}}, fmt,
 };
 use serde::{Serialize, Deserialize};
+
+pub static MAX_BLOCK_SIZE_BYTES: usize = 1000000;
+pub static MAX_BLOCK_SIZE_TXS: usize = 1000;
+pub static BLOCK_RESPONSE_PREFIX_SIZE: usize = 4;
+pub static BLOCK_RESPONSE_FIELD_KEY_SIZE: usize = 1;
+pub static MAX_MIN_MSG_SIZE: usize = MAX_BLOCK_SIZE_BYTES
+    + BLOCK_RESPONSE_PREFIX_SIZE
+    + BLOCK_RESPONSE_FIELD_KEY_SIZE;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct DAG {
@@ -86,9 +97,9 @@ impl StreamingDAG {
 
     pub async fn push_tx(&self, tx: Transaction, org_id: OrgId) {
         if let Some(sig) = self.federation.validate_tx(&tx, org_id) {
-            let mut txn = Transaction::from(tx);
+            let mut txn = Transaction::from(tx.clone());
             txn.sig = Some(sig);
-            self.dag.push_tx(Transaction::from(tx));
+            self.dag.push_tx(Transaction::from(tx.clone()));
             let mut txnqueue = self.tx_queue.lock().unwrap();
             txnqueue.push_back(txn);
             if txnqueue.len() > self.window_size.load(Ordering::Relaxed) {
@@ -102,9 +113,9 @@ impl StreamingDAG {
             let mut txnqueue = self.tx_queue.lock().unwrap();
             if let Some(txn) = txnqueue.pop_front() {
                 println!("Processed transaction: {}{} -> {}{}, {}{}",
-                         txn.send.get_org_id().to_string(), txn.send.handle,
-                         txn.recv.get_org_id().to_string(), txn.recv.handle,
-                         txn.amt.amt, txn.amt.symbol);
+                         txn.send.get_org_id().to_string(), txn.send.id.handle,
+                         txn.recv.get_org_id().to_string(), txn.recv.id.handle,
+                         txn.amt.amt.load(Ordering::Relaxed), txn.amt.symbol);
             }
             drop(txnqueue);
             tokio::time::sleep(Duration::from_millis(1000)).await;

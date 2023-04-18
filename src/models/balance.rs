@@ -1,7 +1,7 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::{
-    sync::atomic::{Ordering, AtomicUsize},
     collections::HashMap,
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 pub type Symbol = String;
@@ -33,7 +33,7 @@ impl Balance {
         self.amt.load(Ordering::Relaxed)
     }
     pub fn add(&mut self, amt: usize) {
-        self.amt.fetch_add(amt, Ordering::Relaxed);
+        self.amt.load(Ordering::Relaxed).wrapping_add(amt);
     }
     pub fn sub(&mut self, amt: usize) {
         self.amt.fetch_sub(amt, Ordering::Relaxed);
@@ -41,5 +41,4 @@ impl Balance {
     pub fn zero() -> Self {
         Self::default()
     }
-
 }
