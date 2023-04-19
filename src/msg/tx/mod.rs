@@ -8,7 +8,7 @@ use crate::{federation::org::user::OrgUser, Balance};
 
 
 /// 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Transaction {
     pub id: TxId,
     pub send: OrgUser,
@@ -16,6 +16,7 @@ pub struct Transaction {
     pub amt: Balance,
     pub timestamp: SystemTime,
     pub sig: Option<String>,
+    pub contract: Option<Vec<u8>>,
 }
 impl Clone for Transaction {
     fn clone(&self) -> Self {
@@ -26,6 +27,7 @@ impl Clone for Transaction {
             amt: self.amt.clone(),
             timestamp: self.timestamp,
             sig: self.sig.clone(),
+            contract: self.contract.clone(),
         }
     }
 }
@@ -49,6 +51,7 @@ impl Transaction {
             amt: Balance::new(symbol.into(), amt),
             timestamp: SystemTime::now(),
             sig: None,
+            contract: None,
         }
     }
 }

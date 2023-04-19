@@ -160,6 +160,12 @@ impl OrgId {
             ..Self::default()
         }
     }
+    pub fn with_fed_id(fed_id: FedId, handle: &str) -> OrgId {
+        Self {
+            fed_id,
+            ..Self::new(handle)
+        }
+    }
     pub fn get_identifier(&self) -> String {
         self.to_string()
     }

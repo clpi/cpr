@@ -47,6 +47,12 @@ impl Federation {
     pub fn register_org(&mut self, org: Org) {
         self.orgs.push(org);
     }
+    pub fn register_orgs(&mut self, org: &[Org]) {
+        for o in org {
+            self.orgs.push(o.clone());
+        }
+
+    }
 
     pub fn validate_tx(&self, tx: &Transaction, org_id: OrgId) -> Option<String> {
         let orgs = self.orgs.as_slice();
@@ -62,5 +68,26 @@ impl Federation {
             }
             None => return None,
         }
+    }
+
+    pub async fn validate_tx_distributed(&self, tx: &Transaction) -> bool {
+        let (mut valid, mut invalid) = (0, 0);
+        let req_validations = self.orgs.len() / 2 + 1;
+        for o in self.orgs.iter() {
+            let orgc = o.clone();
+            let txc = tx.clone();
+            let validation_res = tokio::spawn(async move {
+                orgc.validate_tx(&txc).await
+            });
+            if let Ok(v) = validation_res.await {
+                if v { valid += 1; } else { invalid += 1 };
+            }
+            if valid >= req_validations {
+                return true;
+            } else if invalid >= req_validations {
+                return false;
+            }
+        }
+        false
     }
 }

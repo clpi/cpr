@@ -9,7 +9,7 @@ use crate::Balance;
 use super::{HasIdentifier, OrgId};
 pub use id::OrgUserId;
 
-#[derive(Debug, Serialize, Clone, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Clone, Deserialize)]
 #[serde()]
 pub struct OrgUser {
     pub id: OrgUserId,

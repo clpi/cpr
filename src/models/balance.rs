@@ -13,6 +13,16 @@ pub struct Balance {
     pub symbol: Symbol,
     pub amt: AtomicUsize,
 }
+impl PartialEq for Balance {
+    fn eq(&self, other: &Self) -> bool {
+        if self.symbol == other.symbol {
+            if self.amt.load(Ordering::Relaxed) == other.amt.load(Ordering::Relaxed) {
+                return true;
+            }
+        }
+        false
+    }
+}
 impl Clone for Balance {
     fn clone(&self) -> Self {
         Self {

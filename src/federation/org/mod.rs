@@ -6,7 +6,7 @@ use super::{FedId, Federation, HasIdentifier};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt, ops::DerefMut};
 use user::OrgUser;
-use crate::models::Balance;
+use crate::{models::Balance, Transaction};
 
 ///
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -45,6 +45,23 @@ impl Org {
             symbol: name.to_uppercase().into(),
         }
     }
+    pub async fn validate_tx(&self, t: &Transaction) -> bool {
+        return true
+    }
+    pub fn with_fed_id(fed_id: FedId, name: &str) -> Self {
+        Self {
+            id: OrgId::with_fed_id(fed_id, name),
+            ..Self::new(name)
+        }
+
+    }
+    pub fn get_users(self) -> Vec<OrgUser> {
+        self.users
+    }
+    // pub fn add_user(&mut self, handle: &str) -> OrgUer {
+    //     let ou = OrgUser::new(self.id.clone(), handle.into());
+    //     self.users.push(ou);
+    // }
     pub fn lookup(org_id: OrgId) -> Option<Self> {
         return Some(Self::default())
     }
@@ -62,9 +79,9 @@ impl Org {
         self.users.push(OrgUser::new(self.id.clone(), handle.clone()));
         return ou;
     }
-    pub fn get_users(self) -> Vec<OrgUser> {
-        return Vec::from(self.users);
-    }
+    // pub fn get_users(self) -> Vec<OrgUser> {
+    //     return Vec::from(self.users);
+    // }
     pub fn has_user(self, handle: String) -> Option<OrgUser> {
         let u = self
             .users
@@ -88,10 +105,10 @@ impl Org {
             }
         }
     }
-    pub fn new_from(name: &str, symbol: &str, users: Vec<OrgUser>) -> Self {
+    pub fn new_from(fed_id: FedId, name: &str, symbol: &str, users: Vec<OrgUser>) -> Self {
         Self {
-            id: OrgId::new(name),
-            users: Vec::new(),
+            id: OrgId::with_fed_id(fed_id, name),
+            users,
             symbol: symbol.to_uppercase().into(),
         }
     }

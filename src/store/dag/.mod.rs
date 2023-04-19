@@ -1,5 +1,6 @@
 pub mod tree;
 pub mod graph;
+pub mod node;
 
 use petgraph::{
     graph::{Graph, NodeIndex},
@@ -12,7 +13,7 @@ use tokio::{
 use crate::{Transaction, Federation, federation::org::OrgId};
 use std::{
     thread,
-    collections::{VecDeque, BTreeMap},
+    collections::{VecDeque, HashMap, BTreeMap},
     sync::{Arc, Mutex,  atomic::{Ordering, AtomicUsize, AtomicBool}}, fmt,
 };
 use serde::{Serialize, Deserialize};
@@ -28,8 +29,8 @@ pub static MAX_MIN_MSG_SIZE: usize = MAX_BLOCK_SIZE_BYTES
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct DAG {
     pub nodes: Mutex<Vec<Transaction>>,
-    // pub graph: Arc<Mutex<Graph<Transaction, ()>>>,
-    // pub tx_indices: Arc<Mutex<BTreeMap<Transaction, NodeIndex>>>,
+    pub graph: Arc<Mutex<Graph<Transaction, ()>>>,
+    pub tx_indices: Arc<Mutex<BTreeMap<Transaction, NodeIndex>>>,
 }
 impl fmt::Display for DAG {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -39,17 +40,38 @@ impl fmt::Display for DAG {
 impl DAG {
     pub fn new() -> Arc<DAG> {
         Arc::new(DAG { 
-            nodes: Mutex::new(Vec::new()) ,
-            // graph: Arc::new(Mutex::new(Graph::<Transaction, ()>::new())),
-            // tx_indices: Arc::new(Mutex::new(BTreeMap::new())),
+            nodes: Mutex::new(Vec::new()),
+            graph: Arc::new(Mutex::new(Graph::<Transaction, ()>::new())),
+            tx_indices: Arc::new(Mutex::new(BTreeMap::new())),
         })
     }
 
-    pub fn push_tx(&self, tx: Transaction) -> () {
-        let mut nodes = self.nodes.lock().unwrap();
-        nodes.push(tx);
+    pub async fn push_tx(&self, tx: Transaction, parent_txs: Vec<Transaction>) -> () {
+        let mut graph: Graph<Transaction, ()> = self.graph.lock().await;
+        let mut tx_indices: BTreeMap<Transaction, NodeIndex> = self.tx_indices.lock().await;
+        let tx_nde = graph.add_node(tx.clone());
+        tx_indices.insert(tx.clone(), tx_nde);
+        for parent in parent_txs {
+            if let Some(parent_node) = tx_indices.get(&parent) {
+                graph.add_edge(*parent_node, tx_nde, ());
+            }
+        }
+        // let mut nodes = self.nodes.lock().unwrap();
+        // nodes.push(tx);
+    }
+    pub async fn get_parents(&self, tx: &Transaction) -> Vec<Transaction> {
+        let g: Graph<Transaction, ()> = self.graph.lock().await;
+        let tx_ind: BTreeMap<Transaction, NodeIndex> = self.tx_indices.lock().await;
+        if let Some(txn) = tx_ind.get(tx) {
+            g.neighbors_directed(*txn, Direction::Incoming)
+                .map(|pnode| g[pnode].clone())
+                .collect();
+        } else {
+            Vec::new()
+        }
     }
 }
+
 
 #[derive(Debug)]
 pub struct StreamingDAG {
@@ -83,7 +105,8 @@ impl StreamingDAG {
     }
 
     pub async fn confirm_tx(&self, tx: &Transaction) -> () {
-        self.dag.push_tx(tx.clone());
+        let parents = self.dag.get_parents(tx).await;
+        self.dag.push_tx(tx.clone(), parents).await;
     }
     // pub fn find_tx(&self, tx: &Transaction) -> bool {
     //     let mut nodes = self.dag.nodes.lock().unwrap();
@@ -116,11 +139,17 @@ impl StreamingDAG {
 
     }
 
-    pub async fn push_tx(&self, tx: Transaction, org_id: OrgId) {
+    pub async fn push_tx(&self, tx: Transaction, org_id: OrgId, parent_txs: Vec<Transaction>) {
+        let mut queue: VecDeque<Transaction> = self.tx_queue.lock().await;
+        queue.push_back(tx.clone());
+        drop(queue);
+        self.federation.validate_tx_distributed(&tx.clone()).await;
+        self.dag.push_tx(tx, parent_txs).await;
+
         if let Some(sig) = self.federation.validate_tx(&tx, org_id) {
             let mut txn = Transaction::from(tx.clone());
             txn.sig = Some(sig);
-            self.dag.push_tx(Transaction::from(tx.clone()));
+            self.dag.push_tx(tx.clone(), parent_txs).await;
             let mut txnqueue = self.tx_queue.lock().unwrap();
             txnqueue.push_back(txn);
             if txnqueue.len() > self.window_size.load(Ordering::Relaxed) {

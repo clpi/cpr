@@ -52,6 +52,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "cpr-cli"
+version = "0.1.0"
+
+[[package]]
+name = "cpr-core"
+version = "0.1.0"
+
+[[package]]
+name = "cpr-derive"
+version = "0.1.0"
+
+[[package]]
+name = "cpr-rt"
+version = "0.1.0"
+
+[[package]]
+name = "cpr-store"
+version = "0.1.0"
+
+[[package]]
+name = "cpr-vm"
+version = "0.1.0"
+
+[[package]]
 name = "crossbeam-channel"
 version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -214,6 +238,7 @@ checksum = "4dd7d28ee937e54fe3080c91faa1c3a46c06de6252988a7f4592ba2310ef22a4"
 dependencies = [
  "fixedbitset",
  "indexmap",
+ "serde",
 ]
 
 [[package]]
